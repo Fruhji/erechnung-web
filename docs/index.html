@@ -1,64 +1,308 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-Rechnung Mobil</title>
-  <meta name="description" content="E-Rechnung Mobil erstellt und liest XRechnung- und ZUGFeRD-Rechnungen direkt am Handy — Absender, Positionen und Beträge sofort in Klartext. Für Selbstständige und kleine Firmen.">
-  <script>
-    (function () {
-      var APP_STORE = "https://apps.apple.com/app/id6780467344";
-      var PLAY_LIVE = true;
-      var PLAY_STORE = "https://play.google.com/store/apps/details?id=com.fruhji.erechnung";
-      var ua = navigator.userAgent || navigator.vendor || "";
-      var isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-      var isAndroid = /Android/i.test(ua);
-      if (isIOS) { location.replace(APP_STORE); }
-      else if (isAndroid && PLAY_LIVE) { location.replace(PLAY_STORE); }
-    })();
-  </script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #F4F6FB; color: #131A28; line-height: 1.7; min-height: 100vh;
-      display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
-    main { max-width: 560px; text-align: center; }
-    h1 { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 12px; color: #1B2C52; }
-    .tagline { font-size: 1.2rem; color: #2F5FE0; margin-bottom: 22px; font-weight: 500; }
-    p.lead { color: #4a5468; margin-bottom: 32px; }
-    .stores { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
-    .store { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 13px;
-      background: #1B2C52; color: #F4F6FB; text-decoration: none; transition: opacity .15s; }
-    .store:hover { opacity: .85; }
-    .store svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
-    .store small { display: block; font-size: 0.7rem; opacity: .75; font-weight: 400; line-height: 1.1; }
-    .store b { font-size: 0.98rem; font-weight: 600; line-height: 1.15; }
-    .store .label { text-align: left; }
-    .note { font-size: 0.82rem; color: #7c8499; margin-bottom: 30px; }
-    .foot a { color: inherit; }
-    .foot { font-size: 0.8rem; color: #9aa1b3; }
-    @media (prefers-color-scheme: dark) {
-      body { background: #0E1320; color: #DCE2EE; } h1 { color: #CBD8F2; } .tagline { color: #6E96F0; }
-      p.lead { color: #939bb0; } .store { background: #CBD8F2; color: #0E1320; } .note { color: #6c7488; } .foot { color: #5e6678; } }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Rechnung — normkonforme Rechnungen vom Telefon</title>
+<meta name="description" content="E-Rechnungen nach EN 16931 direkt vom Telefon: XRechnung-CII und PDF/A-3 mit eingebettetem XML, geprüft gegen den KoSIT-Validator. Für Soloselbstständige, Handwerk und Kleingewerbe.">
+<meta name="theme-color" content="#155EEF">
+<link rel="canonical" href="https://erechnung-site.fruhji.workers.dev/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="E-Rechnung">
+<meta property="og:description" content="Normkonforme E-Rechnungen vom Telefon — erstellen, empfangene XML lesen, zehn Jahre unveränderbar archivieren.">
+<meta property="og:locale" content="de_DE">
+
+<style>
+  /* Palette aus apps/mobile/src/theme.ts. Marke #155EEF auf Weiss = 5,41:1.
+     Nuechtern gehalten: die App erzeugt Dokumente mit rechtlicher Wirkung. */
+  :root {
+    --brand: #155EEF;
+    --brand-deep: #164FC4;
+    --brand-wash: #EEF3FE;
+    --paid: #0E9F6E;
+    --ink: #101828;
+    --ink-soft: #48546B;
+    --ink-faint: #77839A;
+    --paper: #FFFFFF;
+    --ground: #F6F8FB;
+    --rule: #DFE4ED;
+    --radius: 14px;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --measure: 62ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --brand: #7BA6FF; --brand-deep: #A6C3FF; --brand-wash: #141C2C; --paid: #4FD3A2;
+      --ink: #E6EAF2; --ink-soft: #A8B3C6; --ink-faint: #7C879B;
+      --paper: #141924; --ground: #0C1017; --rule: #232B39;
+    }
+  }
+  :root[data-theme="dark"] {
+    --brand: #7BA6FF; --brand-deep: #A6C3FF; --brand-wash: #141C2C; --paid: #4FD3A2;
+    --ink: #E6EAF2; --ink-soft: #A8B3C6; --ink-faint: #7C879B;
+    --paper: #141924; --ground: #0C1017; --rule: #232B39;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans);
+    font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: var(--measure); }
+  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.02em; line-height: 1.14; margin: 0; }
+  h1 { font-size: clamp(2rem, 5.2vw, 3.2rem); font-weight: 750; }
+  h2 { font-size: clamp(1.45rem, 3.2vw, 2rem); font-weight: 700; }
+  h3 { font-size: 1.08rem; font-weight: 650; }
+  p { margin: 0; }
+  .eyebrow { font-size: .76rem; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--brand); }
+  section { padding: 66px 0; border-top: 1px solid var(--rule); }
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  header.hero { background: var(--paper); padding: 60px 0 68px; }
+  .hero-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
+  @media (min-width: 880px) { .hero-grid { grid-template-columns: 1.1fr .9fr; gap: 56px; } }
+  .hero p.lead { font-size: 1.14rem; color: var(--ink-soft); max-width: 52ch; }
+  .hero-shot { justify-self: center; max-width: 292px; width: 100%; }
+  .hero-shot img { width: 100%; height: auto; display: block; border-radius: 25px;
+    box-shadow: 0 22px 46px rgba(16, 24, 40, .16), 0 2px 6px rgba(16, 24, 40, .08); }
+
+  .badge-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .store { display: inline-flex; align-items: center; gap: 11px; padding: 12px 20px;
+    border-radius: 11px; background: var(--brand-deep); color: #FFFFFF;
+    text-decoration: none; font-weight: 600; }
+  :root[data-theme="dark"] .store { color: #0C1017; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .store { color: #0C1017; } }
+  .store:hover { background: var(--brand); }
+  .store svg { width: 23px; height: 23px; fill: currentColor; flex: none; }
+  .store small { display: block; font-size: .68rem; opacity: .82; line-height: 1.1; font-weight: 500; }
+  .store b { display: block; font-size: .97rem; line-height: 1.2; }
+
+  .assurance { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: .9rem; color: var(--ink-faint); }
+  .assurance span { display: inline-flex; align-items: center; gap: 7px; }
+  .assurance svg { width: 16px; height: 16px; stroke: var(--brand); fill: none; stroke-width: 2.2; flex: none; }
+
+  .shots { display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); }
+  .shot img { width: 100%; height: auto; display: block; border-radius: 19px; margin-bottom: 13px;
+    box-shadow: 0 13px 30px rgba(16, 24, 40, .12), 0 1px 4px rgba(16, 24, 40, .07); }
+  .shot h3 { margin-bottom: 4px; }
+  .shot p { font-size: .93rem; color: var(--ink-soft); }
+
+  .panel { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: 28px; }
+  .specs { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px 32px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .specs { grid-template-columns: 1fr 1fr; } }
+  .specs li { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: baseline;
+    padding-bottom: 12px; border-bottom: 1px solid var(--rule); font-size: .95rem; }
+  .specs .v { font-family: var(--mono); font-size: .84rem; font-variant-numeric: tabular-nums;
+    color: var(--brand); font-weight: 600; white-space: nowrap; }
+
+  .facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+  .facts li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start; }
+  .facts svg { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+  .tick { stroke: var(--brand); fill: none; stroke-width: 2.4; }
+  .up { stroke: var(--ink-faint); fill: none; stroke-width: 2.4; }
+  .cross { stroke: var(--ink-faint); fill: none; stroke-width: 2.4; }
+  .facts b { font-weight: 650; }
+  .facts span { color: var(--ink-soft); }
+
+  .callout { border-left: 3px solid var(--brand); padding: 4px 0 4px 18px;
+    color: var(--ink-soft); max-width: var(--measure); }
+
+  footer { background: var(--paper); border-top: 1px solid var(--rule); padding: 42px 0 54px; }
+  .foot-grid { display: flex; flex-wrap: wrap; gap: 24px 48px; justify-content: space-between; align-items: flex-start; }
+  footer a { color: var(--ink); text-decoration-color: var(--rule); text-underline-offset: 3px; }
+  footer a:hover { text-decoration-color: var(--brand); }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .93rem; }
+  .foot-note { font-size: .86rem; color: var(--ink-faint); max-width: 46ch; }
+  a:focus-visible, .store:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; border-radius: 4px; }
+</style>
 </head>
 <body>
-  <main>
-    <h1>E-Rechnung Mobil</h1>
-    <p class="tagline">XRechnung &amp; ZUGFeRD am Handy.</p>
-    <p class="lead">Erstelle und lies E-Rechnungen direkt am Smartphone — Absender, Positionen und Beträge sofort in Klartext, im Standard XRechnung und ZUGFeRD. Für Selbstständige und kleine Firmen.</p>
-    <div class="stores">
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="stack">
+      <p class="eyebrow">E-Rechnung</p>
+      <h1>Normkonform, vom Telefon aus.</h1>
+      <p class="lead">
+        Ab 2027 müssen größere Unternehmen E-Rechnungen versenden, ab 2028 alle.
+        Diese App erzeugt sie heute schon — als XRechnung-CII oder als PDF/A-3 mit
+        eingebettetem XML — und liest empfangene Dateien lesbar auf. Für
+        Soloselbstständige, Handwerk und Kleingewerbe.
+      </p>
+      <div class="badge-row">
+        <a class="store" href="https://apps.apple.com/app/id6780467344">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.42 2.2-1.12 3-.78.9-2.05 1.6-3.1 1.52-.13-1.1.42-2.27 1.08-3 .76-.86 2.13-1.5 3.14-1.52zM20.9 17.13c-.55 1.27-.82 1.84-1.53 2.96-1 1.56-2.4 3.5-4.14 3.51-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.74-.02-3.07-1.77-4.06-3.33-2.78-4.35-3.07-9.46-1.36-12.18 1.22-1.94 3.14-3.07 4.95-3.07 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.18-3.34 7.88.31 9.72z"/></svg>
+          <span><small>Laden im</small><b>App Store</b></span>
+        </a>
+        <a class="store" href="https://play.google.com/store/apps/details?id=com.fruhji.erechnung">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 2.2c-.3.3-.5.8-.5 1.4v16.8c0 .6.2 1.1.5 1.4l.1.1 9.4-9.4v-.2L3.7 2.1zM17 15.3l-3.1-3.1v-.2L17 8.8l.1.1 3.7 2.1c1.1.6 1.1 1.6 0 2.2zM16.9 15.4l-3.2-3.2-9.4 9.4c.4.4 1 .4 1.7 0zM5.9 2.1c-.7-.4-1.3-.4-1.7 0l9.4 9.4 3.2-3.2z"/></svg>
+          <span><small>Jetzt bei</small><b>Google Play</b></span>
+        </a>
+      </div>
+      <div class="assurance">
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6z"/></svg>Kein Konto, kein Abo-Zwang</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>XRechnung 3.0 · ZUGFeRD-taugliches PDF/A-3</span>
+      </div>
+    </div>
+    <div class="hero-shot">
+      <img src="img/uebersicht.webp" width="440" height="975" alt="Übersichtsbildschirm der App mit Umsatzkacheln und Schnellzugriff auf neue Rechnungen." loading="eager" decoding="async">
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <div class="stack narrow" style="margin-bottom:42px">
+    <p class="eyebrow">Der Weg</p>
+    <h2>Vom Stundenzettel zur fertigen Datei</h2>
+    <p style="color:var(--ink-soft)">
+      Foto, Diktat oder von Hand. Die Positionserkennung schlägt vor — rechnen,
+      prüfen und die normkonforme Datei bauen macht danach deterministischer Code,
+      kein Sprachmodell.
+    </p>
+  </div>
+  <div class="shots">
+    <figure class="shot" style="margin:0">
+      <img src="img/foto.webp" width="440" height="975" alt="Auswahl der Eingabeart: aus einem Foto, per Diktat oder manuell." loading="lazy" decoding="async">
+      <h3>Erfassen</h3>
+      <p>Beleg oder Stundenzettel fotografieren, diktieren oder tippen.</p>
+    </figure>
+    <figure class="shot" style="margin:0">
+      <img src="img/pruefen.webp" width="440" height="975" alt="Prüfansicht mit erkannten Positionen und Beträgen vor dem Export." loading="lazy" decoding="async">
+      <h3>Prüfen</h3>
+      <p>Jede erkannte Position steht zur Kontrolle da, bevor irgendetwas erzeugt wird.</p>
+    </figure>
+    <figure class="shot" style="margin:0">
+      <img src="img/rechnung.webp" width="440" height="975" alt="Detailansicht einer Rechnung mit Empfänger, Datum und Positionen." loading="lazy" decoding="async">
+      <h3>Ausgeben</h3>
+      <p>XRechnung-CII oder PDF/A-3 mit eingebettetem XML — geprüft, bevor du es verschickst.</p>
+    </figure>
+    <figure class="shot" style="margin:0">
+      <img src="img/offeneposten.webp" width="440" height="964" alt="Offene-Posten-Übersicht mit Summe, Anzahl unbezahlter Rechnungen und nächster Fälligkeit." loading="lazy" decoding="async">
+      <h3>Im Blick behalten</h3>
+      <p>Offene Posten, Überfälligkeiten und die nächste Fälligkeit — lokal aus deinen Rechnungen.</p>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="stack narrow" style="margin-bottom:26px">
+    <p class="eyebrow">Wogegen geprüft wird</p>
+    <h2>Gegen die offiziellen Validatoren, mit festgeschriebener Version</h2>
+    <p style="color:var(--ink-soft)">
+      Die Prüfwerkzeuge sind nicht „aktuell“, sondern auf eine bestimmte Fassung
+      festgenagelt und mit Prüfsumme hinterlegt — sonst ließe sich ein Ergebnis
+      später nicht mehr nachvollziehen.
+    </p>
+  </div>
+  <div class="panel">
+    <ul class="specs">
+      <li><span class="v">1.6.2</span><span>KoSIT-Validator, veröffentlicht 17.02.2026</span></li>
+      <li><span class="v">3.0.2</span><span>XRechnung-Konfiguration, Stand 31.01.2026</span></li>
+      <li><span class="v">1.30.2</span><span>veraPDF Greenfield für PDF/A-3b</span></li>
+      <li><span class="v">2.5</span><span>ZUGFeRD-Referenz</span></li>
+    </ul>
+    <p class="callout" style="margin-top:24px">
+      Ein sauberer Lauf ist <b>kein amtlicher Konformitätsnachweis</b>. Jeder Befund
+      der App nennt seinen Geschäftsterm (BT-1, BT-112, BG-25) und den Regelsatz mit
+      Version — damit du nachlesen kannst, worauf er sich stützt.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="stack narrow" style="margin-bottom:26px">
+    <p class="eyebrow">Datenschutz im Klartext</p>
+    <h2>Was lokal bleibt — und was zum Server geht</h2>
+    <p style="color:var(--ink-soft)">
+      Diese App ist nicht rein lokal, und das soll sie auch nicht behaupten.
+      Hier steht, was wann übertragen wird.
+    </p>
+  </div>
+  <ul class="facts narrow">
+    <li>
+      <svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>
+      <span><b>Lokal gespeichert:</b> Unternehmensprofil, Kontakte, Rechnungen, Angebote, Aufträge, Mahnungen, eingelesene Dokumente und Arbeitsstände.</span>
+    </li>
+    <li>
+      <svg class="up" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6 11l6-6 6 6"/></svg>
+      <span><b>Beim Erzeugen</b> geht das vollständige Rechnungsmodell verschlüsselt an die Serverfunktion, die daraus CII-XML und PDF/A-3 baut, rechnet und validiert.</span>
+    </li>
+    <li>
+      <svg class="up" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6 11l6-6 6 6"/></svg>
+      <span><b>Beim Einlesen</b> geht die von dir gewählte XML-Datei zur Formaterkennung an dieselbe Funktion. <b>Foto und Diktat</b> nur nach deiner ausdrücklichen Aktion.</span>
+    </li>
+    <li>
+      <svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>
+      <span><b>Ein verschlüsseltes Backup</b> legst du selbst ab — über den Systemdialog, an einen Ort deiner Wahl. Wir laden es nicht hoch.</span>
+    </li>
+  </ul>
+</section>
+
+<section>
+  <div class="stack narrow" style="margin-bottom:26px">
+    <p class="eyebrow">Archiv</p>
+    <h2>Zehn Jahre, technisch gegen Löschen gesichert</h2>
+  </div>
+  <ul class="facts narrow">
+    <li>
+      <svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>
+      <span>Archivierte Rechnungen liegen unter einer Objektsperre, die sie <b>3653 Tage</b> vor Löschen und Überschreiben schützt — auch vor uns.</span>
+    </li>
+    <li>
+      <svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>
+      <span>Der Zugang hängt an einem <b>Archivschlüssel auf deinem Gerät</b>. Ohne Konto ist er der einzige Weg zurück — die App fordert dich auf, ihn getrennt zu sichern.</span>
+    </li>
+    <li>
+      <svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      <span><b>Keine Steuerberatung und keine Verfahrensdokumentation.</b> Die App archiviert unveränderbar; ob deine Abläufe insgesamt GoBD-konform sind, entscheidet nicht sie.</span>
+    </li>
+  </ul>
+</section>
+
+<section>
+  <div class="stack narrow">
+    <p class="eyebrow">Preis</p>
+    <h2>Lesen ist kostenlos</h2>
+    <p style="color:var(--ink-soft)">
+      Empfangene E-Rechnungen öffnen und lesbar anzeigen kostet nichts — dafür braucht
+      es nicht einmal ein Konto. Erstellen ist im Gratisumfang begrenzt; Premium hebt
+      die Grenze auf und schaltet Archiv und DATEV-Export frei. Preis und Laufzeit
+      stehen im Store, wo sie verbindlich sind.
+    </p>
+    <div class="badge-row" style="margin-top:8px">
       <a class="store" href="https://apps.apple.com/app/id6780467344">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.42 2.2-1.12 3-.78.9-2.05 1.6-3.1 1.52-.13-1.1.42-2.27 1.08-3 .76-.86 2.13-1.5 3.14-1.52zM20.9 17.13c-.55 1.27-.82 1.84-1.53 2.96-1 1.56-2.4 3.5-4.14 3.51-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.74-.02-3.07-1.77-4.06-3.33-2.78-4.35-3.07-9.46-1.36-12.18 1.22-1.94 3.14-3.07 4.95-3.07 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.18-3.34 7.88.31 9.72z"/></svg>
-        <span class="label"><small>Laden im</small><b>App Store</b></span>
+        <span><small>Laden im</small><b>App Store</b></span>
       </a>
       <a class="store" href="https://play.google.com/store/apps/details?id=com.fruhji.erechnung">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 2.1c-.3.25-.46.66-.46 1.2v17.4c0 .54.16.95.47 1.2l.1.08L13.5 12.1v-.22L3.7 2.02l-.1.08zm14.6 13.4-3.06-3.05 3.06-3.06 3.55 2.02c1.02.58 1.02 1.52 0 2.1l-3.55 1.99zm-.8.46L14.04 12.6 4.2 22.45c.34.27.86.3 1.46-.03l12.34-7.06zM5.66 1.58c-.6-.34-1.12-.3-1.46.03l9.84 9.84 3.42-3.42L5.66 1.58z"/></svg>
-        <span class="label"><small>Jetzt bei</small><b>Google Play</b></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 2.2c-.3.3-.5.8-.5 1.4v16.8c0 .6.2 1.1.5 1.4l.1.1 9.4-9.4v-.2L3.7 2.1zM17 15.3l-3.1-3.1v-.2L17 8.8l.1.1 3.7 2.1c1.1.6 1.1 1.6 0 2.2zM16.9 15.4l-3.2-3.2-9.4 9.4c.4.4 1 .4 1.7 0zM5.9 2.1c-.7-.4-1.3-.4-1.7 0l9.4 9.4 3.2-3.2z"/></svg>
+        <span><small>Jetzt bei</small><b>Google Play</b></span>
       </a>
     </div>
-    <p class="note">Für iPhone, iPad und Android.</p>
-    <p class="foot">Fruhji · <a href="https://erechnung-api.fruhji.workers.dev/datenschutz">Datenschutz</a></p>
-  </main>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <b>Fruhji</b>
+      <p class="foot-note">E-Rechnung wird von Leon Mons entwickelt und herausgegeben.</p>
+    </div>
+    <div class="foot-links">
+      <a href="https://erechnung-api.fruhji.workers.dev/datenschutz">Datenschutz</a>
+      <a href="https://erechnung-api.fruhji.workers.dev/impressum">Impressum</a>
+      <a href="https://apps.apple.com/app/id6780467344">App Store</a>
+      <a href="https://play.google.com/store/apps/details?id=com.fruhji.erechnung">Google Play</a>
+    </div>
+  </div>
+</footer>
+
 </body>
 </html>
